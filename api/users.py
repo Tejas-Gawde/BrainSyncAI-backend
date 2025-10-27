@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from core.config import settings
-from db.mongodb import db
+from db.mongodb import get_db
 from core.security import bytes_to_base64
 from services import auth_service
 from bson.binary import Binary
@@ -9,6 +9,10 @@ from typing import Optional
 from jose import jwt
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+def USERS():
+    return get_db().users
+
 
 def get_token_from_cookie(request: Request):
     token = request.cookies.get(settings.COOKIE_NAME)
@@ -27,7 +31,7 @@ async def get_current_user(request: Request):
     user_id = payload.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token payload")
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    user = await USERS().find_one({"_id": ObjectId(user_id)})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     # convert id
@@ -57,12 +61,12 @@ async def update_me(
     update = {}
     if username and username != current_user["username"]:
         # ensure uniqueness
-        existing = await db.users.find_one({"username": username})
+        existing = await USERS().find_one({"username": username})
         if existing and str(existing["_id"]) != current_user["_id"]:
             raise HTTPException(status_code=400, detail="Username already taken")
         update["username"] = username
     if email and email != current_user["email"]:
-        existing = await db.users.find_one({"email": email})
+        existing = await USERS().find_one({"email": email})
         if existing and str(existing["_id"]) != current_user["_id"]:
             raise HTTPException(status_code=400, detail="Email already taken")
         update["email"] = email
@@ -71,8 +75,8 @@ async def update_me(
         update["avatar"] = Binary(avatar_bytes)
     if not update:
         raise HTTPException(status_code=400, detail="Nothing to update")
-    await db.users.update_one({"_id": ObjectId(current_user["_id"])}, {"$set": update})
-    user = await db.users.find_one({"_id": ObjectId(current_user["_id"])})
+    await USERS().update_one({"_id": ObjectId(current_user["_id"])}, {"$set": update})
+    user = await USERS().find_one({"_id": ObjectId(current_user["_id"])})
     user["_id"] = str(user["_id"])
     user["avatar"] = bytes_to_base64(user.get("avatar")) if user.get("avatar") else None
     return user
