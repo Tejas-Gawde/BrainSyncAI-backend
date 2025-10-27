@@ -1,0 +1,9 @@
+fastapi[standard]
+uvicorn
+python-jose
+bcrypt
+python-dotenv
+pydantic
+pydantic-settings
+aiofiles
+motor
