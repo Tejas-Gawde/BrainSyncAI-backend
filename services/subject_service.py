@@ -58,3 +58,21 @@ async def append_summary_to_subject(subject_id: str, youtube_link: str, summary:
     }
     await db.subjects.update_one({"_id": ObjectId(subject_id)}, {"$push": {"summaries": entry}, "$set": {"updated_at": _now()}})
     return await get_subject(subject_id)
+
+
+async def append_conversation_to_subject(subject_id: str, question: str, answer: str, pdf_filename: str | None = None, added_by: str | None = None):
+        """
+        Append a conversation entry (question + answer) to a subject.
+        Stores into `conversations` array on the subject document:
+            { question, answer, pdf_filename, added_by, added_at }
+        """
+        db = get_db()
+        entry = {
+                "question": question,
+                "answer": answer,
+                "pdf_filename": pdf_filename,
+                "added_by": ObjectId(added_by) if added_by else None,
+                "added_at": _now(),
+        }
+        await db.subjects.update_one({"_id": ObjectId(subject_id)}, {"$push": {"conversations": entry}, "$set": {"updated_at": _now()}})
+        return await get_subject(subject_id)

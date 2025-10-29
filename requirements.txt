@@ -13,3 +13,7 @@ langchain
 langchain_groq
 langchain_community
 youtube-transcript-api
+langchain_chroma
+langchain_huggingface
+sentence-transformers
+pypdf
