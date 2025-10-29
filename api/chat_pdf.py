@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from typing import Optional
 from api.users import get_current_user
 from services.pdf_chat_service import chat_with_pdf
-from services.subject_service import get_subject, append_conversation_to_subject
+from services.subject_service import get_subject, append_pdf_chat_to_subject
 
 router = APIRouter(prefix="/chat-pdf", tags=["chat-pdf"])
 
@@ -33,7 +33,7 @@ async def chat_pdf_endpoint(
         if not subj:
             raise HTTPException(status_code=404, detail="Subject not found")
         try:
-            await append_conversation_to_subject(subject_id, message, answer, pdf_filename=pdf_file.filename, added_by=current_user.get("_id"))
+            await append_pdf_chat_to_subject(subject_id, message, answer, pdf_filename=pdf_file.filename, added_by=current_user.get("_id"))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to save conversation: {e}")
 

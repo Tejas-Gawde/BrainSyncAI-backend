@@ -3,7 +3,7 @@ from pydantic import BaseModel, HttpUrl
 from typing import Optional
 from api.users import get_current_user
 from services.summarize_service import summarize_youtube
-from services.subject_service import get_subject, append_summary_to_subject
+from services.subject_service import get_subject, append_youtube_summarize_to_subject
 
 router = APIRouter(prefix="/summarize", tags=["summarize"])
 
@@ -38,7 +38,7 @@ async def summarize_endpoint(payload: SummarizeIn, current_user: dict = Depends(
             raise HTTPException(status_code=404, detail="Subject not found")
         # attach summary to subject
         try:
-            await append_summary_to_subject(payload.subject_id, str(payload.youtube_link), summary, added_by=current_user.get("_id"))
+            await append_youtube_summarize_to_subject(payload.subject_id, str(payload.youtube_link), summary, added_by=current_user.get("_id"))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to save summary: {e}")
         return SummarizeOut(summary=summary, saved=True, subject_id=payload.subject_id)

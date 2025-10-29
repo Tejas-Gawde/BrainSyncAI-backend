@@ -60,11 +60,10 @@ async def append_summary_to_subject(subject_id: str, youtube_link: str, summary:
     return await get_subject(subject_id)
 
 
-async def append_conversation_to_subject(subject_id: str, question: str, answer: str, pdf_filename: str | None = None, added_by: str | None = None):
+async def append_pdf_chat_to_subject(subject_id: str, question: str, answer: str, pdf_filename: str, added_by: str | None = None):
         """
-        Append a conversation entry (question + answer) to a subject.
-        Stores into `conversations` array on the subject document:
-            { question, answer, pdf_filename, added_by, added_at }
+        Append a PDF chat Q&A pair to a subject document.
+        Adds an entry to the `pdf_chat` array on the subject
         """
         db = get_db()
         entry = {
@@ -74,5 +73,35 @@ async def append_conversation_to_subject(subject_id: str, question: str, answer:
                 "added_by": ObjectId(added_by) if added_by else None,
                 "added_at": _now(),
         }
-        await db.subjects.update_one({"_id": ObjectId(subject_id)}, {"$push": {"conversations": entry}, "$set": {"updated_at": _now()}})
+        await db.subjects.update_one({"_id": ObjectId(subject_id)}, {"$push": {"pdf_chat": entry}, "$set": {"updated_at": _now()}})
+        return await get_subject(subject_id)
+
+async def append_llm_search_to_subject(subject_id: str, query: str, answer: str, added_by: str | None = None):
+        """
+        Append an LLM search Q&A pair to a subject document.
+        Adds an entry to the `llm_search` array on the subject
+        """
+        db = get_db()
+        entry = {
+                "query": query,
+                "answer": answer,
+                "added_by": ObjectId(added_by) if added_by else None,
+                "added_at": _now(),
+        }
+        await db.subjects.update_one({"_id": ObjectId(subject_id)}, {"$push": {"llm_search": entry}, "$set": {"updated_at": _now()}})
+        return await get_subject(subject_id)
+
+async def append_youtube_summarize_to_subject(subject_id: str, youtube_link: str, summary: str, added_by: str | None = None):
+        """
+        Append a YouTube summary to a subject document.
+        Adds an entry to the `youtube_summarize` array on the subject
+        """
+        db = get_db()
+        entry = {
+                "youtube_link": youtube_link,
+                "summary": summary,
+                "added_by": ObjectId(added_by) if added_by else None,
+                "added_at": _now(),
+        }
+        await db.subjects.update_one({"_id": ObjectId(subject_id)}, {"$push": {"youtube_summarize": entry}, "$set": {"updated_at": _now()}})
         return await get_subject(subject_id)
