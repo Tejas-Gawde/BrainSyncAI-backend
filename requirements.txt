@@ -17,3 +17,6 @@ langchain_chroma
 langchain_huggingface
 sentence-transformers
 pypdf
+arxiv
+wikipedia
+ddgs

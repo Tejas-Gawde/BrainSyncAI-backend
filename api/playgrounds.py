@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Path
 from api.users import get_current_user
-from services.playground_service import create_playground, get_playground, add_member_by_userid, is_member, delete_playground
+from services.playground_service import (
+    create_playground, get_playground, add_member_by_userid, 
+    is_member, delete_playground, list_user_playgrounds
+)
 from services.subject_service import list_subjects
 from models.playground import PlaygroundCreate, PlaygroundOut, InviteIn
 from db.mongodb import get_db
@@ -29,6 +32,12 @@ async def get_pg(playground_id: str = Path(...), current_user: dict = Depends(ge
     if current_user["_id"] not in pg["members"]:
         raise HTTPException(status_code=403, detail="Not a member of this playground")
     return pg
+
+@router.get("/", response_model=list[PlaygroundOut])
+async def list_my_playgrounds(current_user: dict = Depends(get_current_user)):
+    """Get all playgrounds where the current user is a member"""
+    playgrounds = await list_user_playgrounds(current_user["_id"])
+    return playgrounds
 
 @router.post("/{playground_id}/invite")
 async def invite(playground_id: str, payload: InviteIn, current_user: dict = Depends(get_current_user)):

@@ -48,6 +48,19 @@ async def is_member(playground_id: str, user_id: str) -> bool:
     pg = await db.playgrounds.find_one({"_id": ObjectId(playground_id), "members": ObjectId(user_id)})
     return pg is not None
 
+async def list_user_playgrounds(user_id: str):
+    db = get_db()
+    cursor = db.playgrounds.find({"members": ObjectId(user_id)})
+    playgrounds = []
+    async for pg in cursor:
+        # normalize IDs to strings
+        pg["_id"] = str(pg["_id"])
+        pg["created_by"] = str(pg["created_by"])
+        pg["owner"] = str(pg["owner"])
+        pg["members"] = [str(m) for m in pg.get("members", [])]
+        playgrounds.append(pg)
+    return playgrounds
+
 async def add_member_by_userid(playground_id: str, user_id: str):
     db = get_db()
     await db.playgrounds.update_one(
