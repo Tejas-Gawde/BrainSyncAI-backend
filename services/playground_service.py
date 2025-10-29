@@ -1,6 +1,8 @@
 from bson import ObjectId
 from datetime import datetime
 from db.mongodb import get_db
+from services.message_service import list_messages
+
 
 def _now():
     return datetime.utcnow()
@@ -33,6 +35,12 @@ async def get_playground(playground_id: str):
     pg["created_by"] = str(pg["created_by"])
     pg["owner"] = str(pg["owner"])
     pg["members"] = [str(m) for m in pg.get("members", [])]
+    # attach playground-level messages
+    try:
+        msgs = await list_messages(playground_id)
+        pg["messages"] = msgs
+    except Exception:
+        pg["messages"] = []
     return pg
 
 async def is_member(playground_id: str, user_id: str) -> bool:
