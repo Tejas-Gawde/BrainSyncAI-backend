@@ -7,3 +7,9 @@ pydantic
 pydantic-settings
 aiofiles
 motor
+validators
+langchain_core
+langchain
+langchain_groq
+langchain_community
+youtube-transcript-api

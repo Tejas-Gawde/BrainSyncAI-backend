@@ -41,3 +41,20 @@ async def list_subjects(playground_id: str):
         s["playground_id"] = str(s["playground_id"])
         out.append(s)
     return out
+
+
+async def append_summary_to_subject(subject_id: str, youtube_link: str, summary: str, added_by: str | None = None):
+    """
+    Append a generated summary to a subject document.
+    Adds an entry to the `summaries` array on the subject like:
+      { youtube_link, summary, added_by, timestamp }
+    """
+    db = get_db()
+    entry = {
+        "youtube_link": youtube_link,
+        "summary": summary,
+        "added_by": ObjectId(added_by) if added_by else None,
+        "added_at": _now(),
+    }
+    await db.subjects.update_one({"_id": ObjectId(subject_id)}, {"$push": {"summaries": entry}, "$set": {"updated_at": _now()}})
+    return await get_subject(subject_id)

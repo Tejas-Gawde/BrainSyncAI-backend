@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from db.mongodb import connect_db, close_db
 from api import auth, users
-from api import playgrounds, subjects, conversations
+from api import playgrounds, subjects, conversations, summarize
 
 app = FastAPI()
 
@@ -31,3 +31,4 @@ app.include_router(users.router)
 app.include_router(playgrounds.router)
 app.include_router(subjects.router)
 app.include_router(conversations.router)
+app.include_router(summarize.router)
