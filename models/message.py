@@ -2,10 +2,8 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
 
-
 class MessageCreate(BaseModel):
     content: str
-
 
 class MessageOut(BaseModel):
     id: str = Field(..., alias="_id")
