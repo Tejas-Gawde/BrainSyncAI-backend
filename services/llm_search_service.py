@@ -5,7 +5,7 @@ from core.config import settings
 from langchain_groq import ChatGroq
 from langchain_community.utilities import ArxivAPIWrapper, WikipediaAPIWrapper
 from langchain_community.tools import ArxivQueryRun, WikipediaQueryRun, DuckDuckGoSearchRun
-from langchain_classic.agents import initialize_agent, AgentType  # ✅ updated import for modern LangChain
+from langchain_classic.agents import initialize_agent, AgentType
 
 
 def run_search(query: str, api_key: Optional[str] = None) -> str:
