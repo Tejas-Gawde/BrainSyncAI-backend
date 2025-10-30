@@ -20,7 +20,7 @@ class LLMSearchOut(BaseModel):
 
 
 @router.post("/", response_model=LLMSearchOut)
-async def llm_search_endpoint(payload: LLMSearchIn, current_user: dict = Depends(get_current_user)):
+async def llm_search_endpoint(payload: LLMSearchIn):
     try:
         result = run_search(payload.query)
     except RuntimeError as re:

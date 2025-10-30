@@ -20,7 +20,7 @@ class SummarizeOut(BaseModel):
 
 
 @router.post("/", response_model=SummarizeOut)
-async def summarize_endpoint(payload: SummarizeIn, current_user: dict = Depends(get_current_user)):
+async def summarize_endpoint(payload: SummarizeIn):
     # generate summary (will raise clear errors if deps or key missing)
     try:
         summary = await summarize_youtube(str(payload.youtube_link))

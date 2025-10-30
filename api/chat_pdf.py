@@ -12,7 +12,6 @@ async def chat_pdf_endpoint(
     pdf_file: UploadFile = File(...),
     message: str = Form(...),
     subject_id: Optional[str] = Form(None),
-    current_user: dict = Depends(get_current_user),
 ):
     # read file bytes
     file_bytes = await pdf_file.read()

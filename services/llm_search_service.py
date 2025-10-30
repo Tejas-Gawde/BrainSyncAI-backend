@@ -45,6 +45,8 @@ def run_search(query: str, api_key: Optional[str] = None) -> str:
         llm,
         agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
         handle_parsing_errors=True,
+        max_iterations=10,
+        max_execution_time=120,
     )
 
     # run the agent on the query
