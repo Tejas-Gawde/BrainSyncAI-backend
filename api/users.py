@@ -28,22 +28,35 @@ async def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Token expired")
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
+
     user_id = payload.get("user_id")
+
+    
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token payload")
+
     user = await USERS().find_one({"_id": ObjectId(user_id)})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
     # convert id
     user["_id"] = str(user["_id"])
-    # attach avatar as base64
+
+    # handle avatar (can be bytes or URL)
     avatar = user.get("avatar")
-    if avatar:
-        # avatar is BSON Binary
+
+    if isinstance(avatar, bytes):
+        # if stored as BSON Binary
         user["avatar"] = bytes_to_base64(avatar)
+    elif isinstance(avatar, str):
+        # predefined avatar URL
+        user["avatar"] = avatar
     else:
         user["avatar"] = None
+    
+
     return user
+
 
 @router.get("/me")
 async def get_me(current_user=Depends(get_current_user)):
@@ -56,6 +69,7 @@ async def update_me(
     username: Optional[str] = Form(None),
     email: Optional[str] = Form(None),
     avatar: Optional[UploadFile] = File(None),
+    avatar_url: Optional[str] = Form(None),
     current_user=Depends(get_current_user)
 ):
     update = {}
@@ -71,14 +85,29 @@ async def update_me(
             raise HTTPException(status_code=400, detail="Email already taken")
         update["email"] = email
     if avatar:
+        # User uploaded a file
         avatar_bytes = await avatar.read()
         update["avatar"] = Binary(avatar_bytes)
+    elif avatar_url:
+        # User selected a predefined avatar URL
+        update["avatar"] = avatar_url
+    
     if not update:
         raise HTTPException(status_code=400, detail="Nothing to update")
+    
     await USERS().update_one({"_id": ObjectId(current_user["_id"])}, {"$set": update})
     user = await USERS().find_one({"_id": ObjectId(current_user["_id"])})
     user["_id"] = str(user["_id"])
-    user["avatar"] = bytes_to_base64(user.get("avatar")) if user.get("avatar") else None
+    
+    # Handle avatar response
+    avatar = user.get("avatar")
+    if isinstance(avatar, bytes):
+        user["avatar"] = bytes_to_base64(avatar)
+    elif isinstance(avatar, str):
+        user["avatar"] = avatar
+    else:
+        user["avatar"] = None
+    
     return user
 
 @router.post("/change-password")

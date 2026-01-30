@@ -9,13 +9,21 @@ from db.mongodb import get_db
 def USERS():
     return get_db().users
 
-async def create_user(username: str, email: str, password: str, avatar_bytes: bytes):
+async def create_user(username: str, email: str, password: str, avatar_bytes: bytes = None, avatar_url: str = None):
     hashed = hash_password(password)
+    
+    # Store avatar as bytes (for uploads) or URL string (for predefined avatars)
+    avatar_value = None
+    if avatar_bytes:
+        avatar_value = Binary(avatar_bytes)
+    elif avatar_url:
+        avatar_value = avatar_url
+    
     user = {
         "username": username,
         "email": email,
         "password": hashed,
-        "avatar": Binary(avatar_bytes),
+        "avatar": avatar_value,
         "created_at": datetime.now(timezone.utc),
         "password_reset": None 
     }
