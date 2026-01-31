@@ -27,7 +27,12 @@ def decode_access_token(token: str):
         raise
 
 def bytes_to_base64(b: bytes) -> str:
-    return base64.b64encode(b).decode("utf-8")
+    """Convert bytes to base64 data URI for image display in browser"""
+    base64_string = base64.b64encode(b).decode("utf-8")
+    return f"data:image/jpeg;base64,{base64_string}"
 
 def base64_to_bytes(s: str) -> bytes:
+    # Handle data URI format if present
+    if s.startswith("data:image"):
+        s = s.split(",", 1)[1]
     return base64.b64decode(s.encode("utf-8"))

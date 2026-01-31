@@ -45,9 +45,10 @@ async def get_current_user(request: Request):
     # handle avatar (can be bytes or URL)
     avatar = user.get("avatar")
 
-    if isinstance(avatar, bytes):
-        # if stored as BSON Binary
-        user["avatar"] = bytes_to_base64(avatar)
+    if isinstance(avatar, (bytes, Binary)):
+        # if stored as BSON Binary, convert to bytes first if needed
+        avatar_bytes = avatar if isinstance(avatar, bytes) else bytes(avatar)
+        user["avatar"] = bytes_to_base64(avatar_bytes)
     elif isinstance(avatar, str):
         # predefined avatar URL
         user["avatar"] = avatar
