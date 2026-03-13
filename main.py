@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from db.mongodb import connect_db, close_db
 from api import auth, users
-from api import playgrounds, subjects, conversations, summarize, chat_pdf, llm_search
+from api import playgrounds, subjects, conversations, summarize, chat_pdf, llm_search, sysarch
 
 app = FastAPI()
 
@@ -10,7 +10,9 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  
+        "http://localhost:3001",  
+        "http://127.0.0.1:3001",
+        "http://localhost:3000",
         "http://127.0.0.1:3000",
     ],
     allow_credentials=True,  
@@ -34,3 +36,4 @@ app.include_router(conversations.router)
 app.include_router(summarize.router)
 app.include_router(chat_pdf.router)
 app.include_router(llm_search.router)
+app.include_router(sysarch.router)
