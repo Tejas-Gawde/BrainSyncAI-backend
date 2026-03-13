@@ -34,7 +34,9 @@ EXAMPLE OUTPUT FORMAT:
     { "id": "auth", "label": "Auth Service", "level": 1 }
   ],
   "edges": [
-    { "from": "start", "to": "auth", "type": "primary" }
+    { "from": "start", "to": "auth", "type": "primary" },
+    { "from": "auth_choice", "to": "login", "type": "branch" },
+    { "from": "failure", "to": "payment", "type": "loop" }
   ]
 }
 """
