@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
+from services.system_arch_service import extract_json, validate_flowchart, assign_levels
 from models.sysarch import PromptRequest, FlowResponse
 import json
-import re
 from groq import Groq
 from core.config import settings
 
@@ -9,117 +9,148 @@ router = APIRouter(tags=["sysarch"])
 client = Groq(api_key=settings.GROQ_API_KEY)
 
 
-SYSTEM_PROMPT = """
-You are a software architecture expert. When given a description of an application or system,
-you must generate a detailed flow diagram represented as JSON.
-
-RULES:
-1. Return ONLY valid raw JSON — no markdown, no code fences, no explanation.
-2. The JSON must have exactly two top-level keys: "nodes" and "edges".
-3. Every node must have: "id" (snake_case string), "label" (short human-readable string), "level" (integer starting from 0).
-4. Every edge must have: "from" (source node id), "to" (target node id), "type" ("primary" | "branch" | "loop").
-5. Use "primary" for the main sequential flow.
-6. Use "branch" for conditional or parallel paths.
-7. Use "loop" ONLY when an edge goes BACKWARDS to a lower level node.
-8. Levels represent horizontal layers (0 = leftmost/start). Keep related branches on the same level.
-9. Every node must be reachable from the start node.
-10. Include 10–25 nodes to give good architectural detail.
-11. Node ids must be unique and descriptive (e.g. "api_gateway", "auth_service").
-12. Do not include any node without at least one edge connecting it.
-
-EXAMPLE OUTPUT FORMAT:
+EXAMPLE_JSON = """
 {
   "nodes": [
-    { "id": "start", "label": "Entry Point", "level": 0 },
-    { "id": "auth", "label": "Auth Service", "level": 1 }
+    {
+      "id": "start",
+      "label": "Launch App",
+      "level": 0,
+      "details": "User opens the e-commerce application",
+      "steps": [
+        "User navigates to application URL or opens mobile app",
+        "Display splash screen with branding",
+        "Initialize app state and load cached data",
+        "Check for network connectivity",
+        "Redirect to authentication flow"
+      ]
+    },
+    {
+      "id": "login",
+      "label": "login",
+      "level": 1,
+      "details": "User enters credentials and submits login form",
+      "steps": [
+        "Display login form with email and password fields",
+        "Validate email format on client side",
+        "Check password length requirements",
+        "Send POST request to /api/auth/login endpoint",
+        "Receive and store JWT token securely",
+        "Redirect to home page on success"
+      ]
+    }
   ],
   "edges": [
-    { "from": "start", "to": "auth", "type": "primary" },
-    { "from": "auth_choice", "to": "login", "type": "branch" },
-    { "from": "failure", "to": "payment", "type": "loop" }
+    { "from": "client_browser", "to": "api_gateway" },
+    { "from": "api_gateway", "to": "auth_service" }
   ]
 }
 """
 
-# ─────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────
+SYSTEM_PROMPT = """You are an expert system architect and flowchart designer. Given a user's description of a system, application, or workflow, you must create a HIGHLY DETAILED, METICULOUS system architecture flowchart with comprehensive coverage of all components.
 
-def extract_json(text: str) -> dict:
-    """
-    Strips any accidental markdown fences and parses JSON.
-    Falls back to a regex search if direct parsing fails.
-    """
-    # Remove ```json ... ``` or ``` ... ```
-    cleaned = re.sub(r"```(?:json)?", "", text).strip().strip("`").strip()
+Your flowcharts must be EXHAUSTIVE and include:
+1. **All layers**: Frontend, Backend, Database, Cache, Message Queues, External APIs, CDN, Load Balancers
+2. **All components**: Auth services, API Gateway, Microservices, Workers, Schedulers, Logging, Monitoring
+3. **All data flows**: User requests, API calls, database queries, cache lookups, message passing, webhooks
+4. **All decision points**: Validation checks, authentication/authorisation gates, error handling branches, retry logic
+5. **All states**: Success paths, failure paths, timeout handling, edge cases, fallback mechanisms
+6. **All integrations**: Third-party services, payment gateways, email/SMS services, cloud storage, analytics
 
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        # Last resort: find the first { ... } block
-        match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-        raise ValueError("No valid JSON found in model response")
+Output format (use exactly these field names):
+- "nodes": array of objects, each with:
+  - "id": unique snake_case identifier (e.g. client_request, auth_validate, db_query, cache_check, error_handler)
+  - "label": short, clear display title for the component/step
+  - "level": integer starting from 0 representing the horizontal layer/depth in the architecture (0 = entry point, increment for each downstream layer)
+  - "details": detailed description of what this component does, its responsibilities, and what data it handles — do NOT mention specific frameworks, libraries, or tools by name
+  - "steps": array of 4-8 actionable implementation steps explaining HOW to build this component — describe the behaviour, pattern, and outcome of each step clearly so a developer can implement it with any technology stack they choose. Do NOT mention specific frameworks, libraries, package names, or tools.
+- "edges": array of objects, each with:
+  - "from": id of the source node
+  - "to": id of the target node
+
+CRITICAL RULES for creating meticulous architectures:
+- Make sure none of the nodes are disconnected — every node should have at least one incoming or outgoing edge, except for the designated start and end nodes
+- Break down EVERY major component into sub-components (e.g., "Authentication" → "JWT Generation", "Token Validation", "Refresh Token", "Session Storage")
+- Include ALL intermediate steps (e.g., Request → Validation → Auth Check → Rate Limiting → Business Logic → DB Query → Response Formatting → Cache Update → Return)
+- Add explicit error handling nodes (e.g., "validation_error", "auth_failure", "db_timeout", "retry_logic")
+- Show data transformation points (e.g., "parse_request", "serialize_response", "format_output")
+- Include infrastructure components (e.g., "load_balancer", "api_gateway", "cdn", "cache_layer", "message_queue")
+- Add monitoring/logging nodes where relevant (e.g., "log_request", "metrics_collector", "error_tracker")
+- Use decision nodes for all branching logic (e.g., "check_cache_hit", "validate_token", "user_authorized")
+- Include at least 20-40+ nodes for any non-trivial system
+- EVERY node MUST have a "steps" array with 4-8 specific, actionable implementation steps that describe the behaviour and pattern to implement — do NOT name specific frameworks, libraries, packages, or tools. Steps must be clear enough that a developer can implement them in any language or stack.
+- Every "from" and "to" must match an existing node id
+- Output only valid JSON, no markdown or explanation"""
 
 
-def validate_flow(data: dict) -> dict:
-    """
-    Basic structural validation + integrity checks on the flow data.
-    """
-    if "nodes" not in data or "edges" not in data:
-        raise ValueError("Response missing 'nodes' or 'edges' keys")
+def build_user_message(prompt: str) -> str:
+    example_request = "E-commerce app: user can login/register, browse products, view product details, add to cart, checkout, pay; show success/failure and profile/orders."
 
-    node_ids = {n["id"] for n in data["nodes"]}
+    return f"""Example request: "{example_request}"
 
-    for node in data["nodes"]:
-        for key in ("id", "label", "level"):
-            if key not in node:
-                raise ValueError(f"Node missing key '{key}': {node}")
+Example output format:
+{EXAMPLE_JSON}
 
-    for edge in data["edges"]:
-        for key in ("from", "to", "type"):
-            if key not in edge:
-                raise ValueError(f"Edge missing key '{key}': {edge}")
-        if edge["from"] not in node_ids:
-            raise ValueError(f"Edge references unknown source: {edge['from']}")
-        if edge["to"] not in node_ids:
-            raise ValueError(f"Edge references unknown target: {edge['to']}")
-        if edge["type"] not in ("primary", "branch", "loop"):
-            edge["type"] = "primary"  # safe default
+Now generate the flowchart JSON for this request. Output ONLY the JSON object, no other text:
+{prompt}"""
 
-    return data
-
-# ─────────────────────────────────────────────
-# Routes
-# ─────────────────────────────────────────────
 
 @router.post("/generate-architecture", response_model=FlowResponse)
 async def generate_architecture(body: PromptRequest):
     if not body.prompt.strip():
-        raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+        raise HTTPException(status_code=400, detail="Missing or empty prompt")
 
     try:
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": f"Generate a system architecture flow for: {body.prompt}",
-                },
+                {"role": "user",   "content": build_user_message(body.prompt)},
             ],
-            temperature=0.4,      # low temp = more consistent JSON
-            max_tokens=4096,
-            response_format={"type": "json_object"},  # enforce JSON mode
+            temperature=0.2,   # matches Node.js version exactly
+            max_tokens=8000,   # matches Node.js version exactly
+            # NOTE: no response_format here — the Node.js version didn't
+            # use JSON mode either, relying on the prompt + extractJson instead
         )
 
-        raw = response.choices[0].message.content
-        data = extract_json(raw)
-        validated = validate_flow(data)
-        return validated
+        raw = completion.choices[0].message.content
+        if not raw or not raw.strip():
+            raise HTTPException(status_code=502, detail="Empty response from model")
 
-    except ValueError as ve:
-        raise HTTPException(status_code=422, detail=str(ve))
+        raw = raw.strip()
+
+        # Extract and parse JSON
+        try:
+            json_str = extract_json(raw)
+            parsed = json.loads(json_str)
+        except (ValueError, json.JSONDecodeError) as e:
+            raise HTTPException(
+                status_code=502,
+                detail="Model output was not valid JSON"
+            )
+
+        # Validate structure
+        if not validate_flowchart(parsed):
+            raise HTTPException(
+                status_code=502,
+                detail="Generated JSON does not match required flowchart schema "
+                       "(nodes with id, label; edges with from, to)",
+            )
+
+        # Ensure every node has a level (BFS fallback if model omitted them)
+        parsed = assign_levels(parsed)
+
+        return parsed
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Groq error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e) if str(e) else "Generation failed"
+        )
+
+
+@router.get("/health")
+async def health():
+    return {"status": "ok"}
