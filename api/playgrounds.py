@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Path
 from api.users import get_current_user
 from services.playground_service import (
     create_playground, get_playground, add_member_by_userid, 
-    is_member, delete_playground, list_user_playgrounds
+    is_member, delete_playground, list_user_playgrounds,
+    remove_member_by_userid
 )
 from services.subject_service import list_subjects
 from models.playground import PlaygroundCreate, PlaygroundOut, InviteIn
@@ -66,3 +67,22 @@ async def delete(playground_id: str, current_user: dict = Depends(get_current_us
         raise HTTPException(status_code=403, detail="Only owner may delete playground")
     await delete_playground(playground_id)
     return {"message": "playground deleted"}
+
+@router.post("/{playground_id}/leave")
+async def leave_playground(
+    playground_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    pg = await get_playground(playground_id)
+    if not pg:
+        raise HTTPException(status_code=404, detail="Playground not found")
+    if current_user["_id"] not in pg["members"]:
+        raise HTTPException(status_code=403, detail="You are not a member of this playground")
+    if current_user["_id"] == pg["owner"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Owner cannot leave. Transfer ownership or delete the playground instead."
+        )
+
+    await remove_member_by_userid(playground_id, current_user["_id"])
+    return {"message": "Left playground successfully"}
